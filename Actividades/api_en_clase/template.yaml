@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  api_en_clase
+
+  Sample SAM Template for api_en_clase
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+  Function:
+    Timeout: 3
+
+    # You can add LoggingConfig parameters such as the Logformat, Log Group, and SystemLogLevel or ApplicationLogLevel. Learn more here https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/sam-resource-function.html#sam-function-loggingconfig.
+    LoggingConfig:
+      LogFormat: JSON
+Resources:
+  MiTablaUsuarios:
+    Type: AWS::Serverless::SimpleTable # crea una DynamoDB básica
+    Properties:
+      PrimaryKey:
+        Name: id
+        Type: String
+
+  MiFuncionLambda:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: hello_world/
+      Handler: app.lambda_handler
+      Runtime: python3.13
+      Environment: 
+        Variables:
+          TABLE_NAME: !Ref MiTablaUsuarios
+      Events:
+        CrearUsuario:
+          Type: Api
+          Properties:
+            Path: /usuarios
+            Method: post
+
+Outputs:
+  # URL del API Gateway (SAM la crea automáticamente como ServerlessRestApi)
+  MiApiUrl:
+    Description: "URL del API Gateway para el ambiente local"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.localhost.localstack.cloud:4566/Prod/usuarios/"
+
+  MiFuncionLambdaArn:
+    Description: "ARN de la Lambda de Usuarios"
+    Value: !GetAtt MiFuncionLambda.Arn
+
+  MiFuncionLambdaRole:
+    Description: "Rol de IAM creado para la Lambda"
+    Value: !GetAtt MiFuncionLambdaRole.Arn
