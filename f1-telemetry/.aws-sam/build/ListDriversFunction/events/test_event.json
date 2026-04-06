@@ -1,3 +1,5 @@
 {
-  "session_key": 9158
+  "queryStringParameters": {
+    "session_key": "9158"
+  }
 }

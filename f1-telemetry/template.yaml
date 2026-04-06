@@ -10,6 +10,7 @@ Globals:
 
 Resources:
 
+  # --- 1. List Drivers ---
   ListDriversFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -17,3 +18,59 @@ Resources:
       CodeUri: functions/list-drivers/
       Policies:
         - AWSLambdaBasicExecutionRole
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /drivers
+            Method: GET
+
+  # --- 2. Get Session ---
+  GetSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.handler
+      CodeUri: functions/get-session/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}
+            Method: GET
+
+  # --- 3. List Sessions ---
+  ListSessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.handler
+      CodeUri: functions/list-sessions/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /sessions
+            Method: GET
+
+  # --- 4. Driver Summary ---
+  DriverSummaryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: handler.handler
+      CodeUri: functions/driver-summary/
+      Policies:
+        - AWSLambdaBasicExecutionRole
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /drivers/summary
+            Method: GET
+
+Outputs:
+  ApiUrl:
+    Description: URL base del API Gateway
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"

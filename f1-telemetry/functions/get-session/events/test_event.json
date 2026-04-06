@@ -1,5 +1,5 @@
 {
-  "queryStringParameters": {
+  "pathParameters": {
     "session_key": "9158"
   }
 }
