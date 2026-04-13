@@ -1,0 +1,21 @@
+{
+  "version": "53.0.0",
+  "files": {
+    "676beccf9136ba1e99026193f0918c5b9a1d172365fd5560d7370e6190a3fc06": {
+      "displayName": "F1MessagingStack Template",
+      "source": {
+        "path": "F1MessagingStack.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "000000000000-us-east-1-9756d283": {
+          "bucketName": "cdk-hnb659fds-assets-000000000000-us-east-1",
+          "objectKey": "676beccf9136ba1e99026193f0918c5b9a1d172365fd5560d7370e6190a3fc06.json",
+          "region": "us-east-1",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::000000000000:role/cdk-hnb659fds-file-publishing-role-000000000000-us-east-1"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

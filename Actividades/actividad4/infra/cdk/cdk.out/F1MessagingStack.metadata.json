@@ -1,0 +1,32 @@
+{
+  "/F1MessagingStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/F1MessagingStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/F1MessagingStack/F1IngestScheduleRule/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "F1IngestScheduleRule65D60B07"
+    }
+  ],
+  "/F1MessagingStack/F1IngestScheduleRule/AllowEventRuleF1LambdaStackF1IngestFunctionA2A9A701": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "F1IngestScheduleRuleAllowEventRuleF1LambdaStackF1IngestFunctionA2A9A70160AE1B5C"
+    }
+  ],
+  "/F1MessagingStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  actividad2 — Week 2: API Gateway and Event Sources (OpenF1 REST API)
+
+Globals:
+  Function:
+    Timeout: 30
+    Runtime: python3.12
+    MemorySize: 256
+    Architectures:
+      - x86_64
+    LoggingConfig:
+      LogFormat: JSON
+
+Resources:
+  ListSessionsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: f1_api/
+      Handler: handler.list_sessions
+      Events:
+        ListSessions:
+          Type: Api
+          Properties:
+            Path: /sessions
+            Method: get
+
+  GetSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: f1_api/
+      Handler: handler.get_session
+      Events:
+        GetSession:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}
+            Method: get
+
+  IngestSessionFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: f1_api/
+      Handler: handler.ingest_session
+      Timeout: 120
+      MemorySize: 512
+      Events:
+        IngestSession:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/ingest
+            Method: post
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
+
+  ListSessionsFunctionArn:
+    Description: "ListSessions Lambda ARN"
+    Value: !GetAtt ListSessionsFunction.Arn
+
+  GetSessionFunctionArn:
+    Description: "GetSession Lambda ARN"
+    Value: !GetAtt GetSessionFunction.Arn
+
+  IngestSessionFunctionArn:
+    Description: "IngestSession Lambda ARN"
+    Value: !GetAtt IngestSessionFunction.Arn

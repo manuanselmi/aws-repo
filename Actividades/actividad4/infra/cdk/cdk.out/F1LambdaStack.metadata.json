@@ -1,0 +1,44 @@
+{
+  "/F1LambdaStack/BootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "BootstrapVersion"
+    }
+  ],
+  "/F1LambdaStack/CheckBootstrapVersion": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CheckBootstrapVersion"
+    }
+  ],
+  "/F1LambdaStack/F1IngestFunction/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "F1IngestFunctionBDF31E0C"
+    }
+  ],
+  "/F1LambdaStack/CDKMetadata/Default": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "CDKMetadata"
+    }
+  ],
+  "/F1LambdaStack/Exports/Output{\"Fn::GetAtt\":[\"F1IngestFunctionBDF31E0C\",\"Arn\"]}": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "ExportsOutputFnGetAttF1IngestFunctionBDF31E0CArn237A53EE"
+    }
+  ],
+  "/F1LambdaStack/F1IngestFunction/ServiceRole/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "F1IngestFunctionServiceRole286C9D09"
+    }
+  ],
+  "/F1LambdaStack/F1IngestFunction/ServiceRole/DefaultPolicy/Resource": [
+    {
+      "type": "aws:cdk:logicalId",
+      "data": "F1IngestFunctionServiceRoleDefaultPolicy6976F8F0"
+    }
+  ]
+}

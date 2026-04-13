@@ -1,0 +1,87 @@
+{
+ "Resources": {
+  "F1IngestScheduleRule65D60B07": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "Dispara la ingesta F1 cada 5 minutos (deshabilitada por defecto)",
+    "Name": "f1-ingest-schedule",
+    "ScheduleExpression": "rate(5 minutes)",
+    "State": "DISABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::ImportValue": "F1LambdaStack:ExportsOutputFnGetAttF1IngestFunctionBDF31E0CArn237A53EE"
+      },
+      "Id": "Target0",
+      "Input": "{\"source\":\"eventbridge-schedule\",\"detail-type\":\"ScheduledIngest\"}"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "F1MessagingStack/F1IngestScheduleRule/Resource"
+   }
+  },
+  "F1IngestScheduleRuleAllowEventRuleF1LambdaStackF1IngestFunctionA2A9A70160AE1B5C": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::ImportValue": "F1LambdaStack:ExportsOutputFnGetAttF1IngestFunctionBDF31E0CArn237A53EE"
+    },
+    "Principal": "events.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "F1IngestScheduleRule65D60B07",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "F1MessagingStack/F1IngestScheduleRule/AllowEventRuleF1LambdaStackF1IngestFunctionA2A9A701"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/zPSMzKx0DNQTCwv1k1OydbNyUzSqw4uSUzO1gEKxVenlqXmlRTrVQeV5qTqOKflgehanZzE3KSURD0gPyC1KDezuDgzP6+2ViegsiQjP0/fWM9Sz0wxqzgzU7eoNK8kMzdVLwhCAwBi3VplbgAAAA=="
+   },
+   "Metadata": {
+    "aws:cdk:path": "F1MessagingStack/CDKMetadata/Default"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

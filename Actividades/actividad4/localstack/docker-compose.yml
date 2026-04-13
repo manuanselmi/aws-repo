@@ -1,0 +1,34 @@
+version: "3.8"
+
+services:
+  localstack:
+    image: localstack/localstack:3.4
+    container_name: f1-localstack
+    ports:
+      - "4566:4566"       # Gateway unificado (todos los servicios)
+      - "4510-4559:4510-4559"  # Rango de puertos legacy (por si acaso)
+    environment:
+      # Servicios que necesitamos
+      - SERVICES=s3,dynamodb,events,lambda,iam
+      # Nivel de log (info | debug | trace)
+      - DEBUG=0
+      # Persistencia: los datos sobreviven a reinicios del container
+      - PERSISTENCE=1
+      # Directorio de datos dentro del container
+      - DATA_DIR=/var/lib/localstack/data
+      # Nombre del host para generar URLs de S3 (path-style)
+      - HOSTNAME_EXTERNAL=localhost
+      - AWS_DEFAULT_REGION=us-east-1
+    volumes:
+      - localstack_data:/var/lib/localstack
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 10s
+      retries: 10
+      start_period: 10s
+
+volumes:
+  localstack_data:
+    driver: local
