@@ -1,20 +1,3 @@
-"""
-Lambda de ingesta F1 — Actividad 4
-
-Flujo:
-  1. Recibe evento de EventBridge (o invocación directa)
-  2. Llama a la API OpenF1 para obtener sesiones recientes del año actual
-  3. Para cada sesión nueva (no existe en DynamoDB):
-     a. Guarda JSON crudo en S3       → s3_repo
-     b. Parsea y guarda en DynamoDB   → session_repo + driver_repo
-
-Variables de entorno requeridas:
-  SESSIONS_TABLE     nombre de la tabla DynamoDB de sesiones
-  DRIVER_STATS_TABLE nombre de la tabla DynamoDB de pilotos
-  RAW_BUCKET         nombre del bucket S3
-  AWS_ENDPOINT_URL   (opcional) para LocalStack: http://localhost:4566
-"""
-
 import json
 import logging
 import os
@@ -23,8 +6,6 @@ from datetime import datetime
 
 import requests
 
-# Agrega el directorio raíz al path para poder importar repositories/
-# cuando la Lambda se ejecuta localmente (fuera de un paquete instalado)
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../.."))
 
 from repositories.session_repo import SessionRepository
@@ -58,11 +39,6 @@ def _fetch_drivers(session_key: int) -> list[dict]:
 
 
 def lambda_handler(event, context):
-    """
-    Punto de entrada de la Lambda.
-    Puede ser invocada por EventBridge o directamente con:
-      {"year": 2024}  ← para ingestar un año específico
-    """
     year = event.get("year", datetime.utcnow().year)
     logger.info(f"Iniciando ingesta para el año {year}")
 
@@ -86,21 +62,14 @@ def lambda_handler(event, context):
         if not session_key:
             continue
 
-        # Evitar re-ingestar sesiones ya guardadas
         if session_repo.exists(session_key):
             skipped.append(session_key)
             logger.info(f"Sesión {session_key} ya existe — saltando")
             continue
 
-        # ----------------------------------------------------------------
-        # 1. Guardar datos crudos en S3
-        # ----------------------------------------------------------------
         s3_session_key = s3_repo.save_session_raw(session_key, session)
         logger.info(f"Sesión {session_key} → S3:{s3_session_key}")
 
-        # ----------------------------------------------------------------
-        # 2. Obtener y guardar pilotos
-        # ----------------------------------------------------------------
         try:
             drivers_raw = _fetch_drivers(session_key)
         except requests.RequestException as e:
@@ -111,9 +80,6 @@ def lambda_handler(event, context):
             s3_drivers_key = s3_repo.save_drivers_raw(session_key, drivers_raw)
             logger.info(f"Pilotos {session_key} → S3:{s3_drivers_key}")
 
-        # ----------------------------------------------------------------
-        # 3. Parsear y guardar en DynamoDB
-        # ----------------------------------------------------------------
         session_item = {
             "session_key": session_key,
             "session_name": session.get("session_name"),

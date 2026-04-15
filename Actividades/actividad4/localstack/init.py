@@ -1,19 +1,3 @@
-"""
-Script de inicialización para LocalStack.
-
-Crea directamente con boto3 todos los recursos definidos en los CDK stacks:
-  - DynamoDB tabla f1_sessions
-  - DynamoDB tabla f1_driver_stats
-  - S3 bucket f1-raw-data
-
-Esto es equivalente a hacer 'cdklocal deploy --all' pero sin necesitar
-Node.js ni el paquete aws-cdk-local instalado.
-
-Uso:
-  export AWS_ENDPOINT_URL=http://localhost:4566
-  python localstack/init.py
-"""
-
 import boto3
 import os
 import sys
@@ -21,7 +5,6 @@ import sys
 ENDPOINT = os.environ.get("AWS_ENDPOINT_URL", "http://localhost:4566")
 REGION = "us-east-1"
 
-# Credenciales dummy — LocalStack no las valida pero boto3 las requiere
 AWS_KWARGS = dict(
     endpoint_url=ENDPOINT,
     region_name=REGION,
@@ -34,9 +17,6 @@ def create_dynamodb_tables():
     client = boto3.client("dynamodb", **AWS_KWARGS)
     existing = {t for t in client.list_tables()["TableNames"]}
 
-    # ----------------------------------------------------------------
-    # f1_sessions — PK: session_key (Number)
-    # ----------------------------------------------------------------
     if "f1_sessions" not in existing:
         client.create_table(
             TableName="f1_sessions",
@@ -52,9 +32,6 @@ def create_dynamodb_tables():
     else:
         print("- Tabla f1_sessions ya existe")
 
-    # ----------------------------------------------------------------
-    # f1_driver_stats — PK: session_key (N), SK: driver_number (N)
-    # ----------------------------------------------------------------
     if "f1_driver_stats" not in existing:
         client.create_table(
             TableName="f1_driver_stats",
@@ -78,7 +55,6 @@ def create_s3_bucket():
     existing = {b["Name"] for b in client.list_buckets().get("Buckets", [])}
 
     if "f1-raw-data" not in existing:
-        # us-east-1 no usa LocationConstraint (es el default de S3)
         client.create_bucket(Bucket="f1-raw-data")
         print("✓ Bucket f1-raw-data creado")
     else:
@@ -86,7 +62,6 @@ def create_s3_bucket():
 
 
 def verify():
-    """Verifica que todos los recursos están accesibles."""
     ddb = boto3.client("dynamodb", **AWS_KWARGS)
     s3 = boto3.client("s3", **AWS_KWARGS)
 

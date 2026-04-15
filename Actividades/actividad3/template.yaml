@@ -4,9 +4,6 @@ Description: >
   actividad3 — Week 3: SAM Deep Dive. Production-ready OpenF1 API with
   multi-environment deployment (dev/prod).
 
-# ---------------------------------------------------------------------------
-# Parameters — inputs that change per environment
-# ---------------------------------------------------------------------------
 Parameters:
   Environment:
     Type: String
@@ -16,15 +13,9 @@ Parameters:
       - prod
     Description: Deployment environment (dev or prod)
 
-# ---------------------------------------------------------------------------
-# Conditions — logic that varies between environments
-# ---------------------------------------------------------------------------
 Conditions:
   IsProd: !Equals [!Ref Environment, prod]
 
-# ---------------------------------------------------------------------------
-# Globals — shared configuration across all functions
-# ---------------------------------------------------------------------------
 Globals:
   Function:
     Runtime: python3.12
@@ -38,9 +29,6 @@ Globals:
     LoggingConfig:
       LogFormat: JSON
 
-# ---------------------------------------------------------------------------
-# Resources
-# ---------------------------------------------------------------------------
 Resources:
   ListSessionsFunction:
     Type: AWS::Serverless::Function
@@ -84,9 +72,6 @@ Resources:
             Path: /sessions/{session_key}/ingest
             Method: post
 
-# ---------------------------------------------------------------------------
-# Outputs
-# ---------------------------------------------------------------------------
 Outputs:
   EnvironmentName:
     Description: "Current deployment environment"
