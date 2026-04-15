@@ -1,0 +1,8 @@
+{
+  "httpMethod": "GET",
+  "path": "/sessions",
+  "pathParameters": null,
+  "queryStringParameters": null,
+  "body": null,
+  "headers": {}
+}

@@ -1,0 +1,10 @@
+{
+  "httpMethod": "POST",
+  "path": "/sessions/9159/ingest",
+  "pathParameters": {
+    "session_key": "9159"
+  },
+  "queryStringParameters": null,
+  "body": null,
+  "headers": {}
+}

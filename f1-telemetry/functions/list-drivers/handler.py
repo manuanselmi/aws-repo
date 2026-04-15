@@ -1,59 +1,78 @@
 """
 Lambda: list_drivers
-Descripcion: Dado un session_key, consulta la API de OpenF1
-             y retorna la lista de pilotos de esa sesion.
+Descripcion: Lista los pilotos de una sesion ya ingestada en DynamoDB.
+             NO llama a OpenF1.
 
-Soporta invocacion directa y API Gateway (query string).
-
-GET /drivers?session_key=9158
+GET /sessions/{session_key}/drivers
 """
 import json
-import urllib.error
-import urllib.request
+import decimal
+from boto3.dynamodb.conditions import Key
 
-OPENF1_BASE_URL = "https://api.openf1.org/v1"
+from dynamo_client import get_table
+
+
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, decimal.Decimal):
+            return float(obj)
+        return super().default(obj)
 
 
 def handler(event, context):
-    params = event.get("queryStringParameters") or event
-    session_key = params.get("session_key")
+    path_params = event.get("pathParameters") or {}
+    session_key = path_params.get("session_key") or event.get("session_key")
 
     if not session_key:
-        return _response(400, {"error": "session_key is required"})
-
-    url = f"{OPENF1_BASE_URL}/drivers?session_key={session_key}"
+        return _resp(400, {"error": "session_key es requerido en el path"})
 
     try:
-        with urllib.request.urlopen(url, timeout=10) as resp:
-            raw_data = json.loads(resp.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        return _response(502, {"error": f"OpenF1 API returned HTTP {e.code}"})
-    except Exception as e:
-        return _response(500, {"error": f"Internal error: {str(e)}"})
+        session_key = int(session_key)
+    except (ValueError, TypeError):
+        return _resp(400, {"error": "session_key debe ser un numero entero"})
 
-    if not raw_data:
-        return _response(404, {"error": f"No drivers found for session_key {session_key}"})
+    table = get_table()
+
+    # Verificar que la sesion existe
+    session_item = table.get_item(
+        Key={"PK": f"SESSION#{session_key}", "SK": "#METADATA"}
+    ).get("Item")
+    if not session_item:
+        return _resp(404, {
+            "error": f"La sesion {session_key} no fue ingestada.",
+            "hint": f"Usar POST /sessions/{session_key}/ingest primero.",
+        })
+
+    # Consultar pilotos: PK = SESSION#sk, SK begins_with DRIVER#
+    result = table.query(
+        KeyConditionExpression=(
+            Key("PK").eq(f"SESSION#{session_key}") &
+            Key("SK").begins_with("DRIVER#")
+        )
+    )
+    items = result.get("Items", [])
 
     drivers = [
         {
-            "driver_number": d.get("driver_number"),
-            "full_name": d.get("full_name"),
-            "team_name": d.get("team_name"),
-            "country_code": d.get("country_code"),
+            "driver_number": item.get("driver_number"),
+            "full_name": item.get("full_name"),
+            "name_acronym": item.get("name_acronym"),
+            "team_name": item.get("team_name"),
+            "country_code": item.get("country_code"),
         }
-        for d in raw_data
+        for item in items
     ]
 
-    return _response(200, {
-        "session_key": int(session_key),
+    return _resp(200, {
+        "session_key": session_key,
         "drivers_count": len(drivers),
         "drivers": drivers,
     })
 
 
-def _response(status_code, body):
+def _resp(status, body):
     return {
-        "statusCode": status_code,
+        "statusCode": status,
         "headers": {"Content-Type": "application/json"},
-        "body": json.dumps(body),
+        "body": json.dumps(body, cls=DecimalEncoder),
     }

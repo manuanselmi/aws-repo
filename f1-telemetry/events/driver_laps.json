@@ -1,0 +1,11 @@
+{
+  "httpMethod": "GET",
+  "path": "/sessions/9159/drivers/1/laps",
+  "pathParameters": {
+    "session_key": "9159",
+    "driver_number": "1"
+  },
+  "queryStringParameters": null,
+  "body": null,
+  "headers": {}
+}

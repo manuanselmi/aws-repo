@@ -1,11 +1,10 @@
 """
-Lambda: driver_summary
-Descripcion: Dado un session_key y driver_number, calcula el resumen del piloto
-             en esa sesion usando los datos persistidos en DynamoDB.
-             Calcula: cantidad de vueltas, mejor vuelta, velocidad promedio, velocidad maxima.
+Lambda: driver_laps
+Descripcion: Lista todas las vueltas de un piloto en una sesion,
+             incluyendo la posicion en la que termino cada vuelta.
              NO llama a OpenF1.
 
-GET /sessions/{session_key}/drivers/{driver_number}/summary
+GET /sessions/{session_key}/drivers/{driver_number}/laps
 """
 import json
 import decimal
@@ -47,44 +46,40 @@ def handler(event, context):
             "hint": f"Verificar que la sesion fue ingestada con POST /sessions/{session_key}/ingest",
         })
 
-    # Consultar todas las vueltas del piloto en esta sesion
+    # Consultar todas las vueltas: PK = SESSION#sk#DRIVER#dn
     result = table.query(
         KeyConditionExpression=Key("PK").eq(f"SESSION#{session_key}#DRIVER#{driver_number}")
     )
     laps = result.get("Items", [])
 
     if not laps:
-        return _resp(422, {
+        return _resp(404, {
             "error": f"No hay vueltas registradas para el piloto {driver_number} en la sesion {session_key}.",
         })
 
-    # Calcular metricas
-    # Mejor vuelta: minima lap_duration (ignorar vueltas sin duracion o pit out)
-    valid_laps = [
-        lap for lap in laps
-        if lap.get("lap_duration") and not lap.get("is_pit_out_lap", False)
+    # Ordenar por numero de vuelta
+    laps.sort(key=lambda l: l.get("lap_number", 0))
+
+    laps_response = [
+        {
+            "lap_number": lap.get("lap_number"),
+            "lap_duration_sec": float(lap["lap_duration"]) if lap.get("lap_duration") else None,
+            "st_speed_kmh": float(lap["st_speed"]) if lap.get("st_speed") else None,
+            "i1_speed_kmh": float(lap["i1_speed"]) if lap.get("i1_speed") else None,
+            "i2_speed_kmh": float(lap["i2_speed"]) if lap.get("i2_speed") else None,
+            "position": lap.get("position"),
+            "is_pit_out_lap": lap.get("is_pit_out_lap", False),
+            "date_start": lap.get("date_start"),
+        }
+        for lap in laps
     ]
-
-    best_lap = None
-    if valid_laps:
-        best_lap_item = min(valid_laps, key=lambda l: l["lap_duration"])
-        best_lap = float(best_lap_item["lap_duration"])
-
-    # Velocidad maxima en speed trap (st_speed)
-    speeds = [float(lap["st_speed"]) for lap in laps if lap.get("st_speed")]
-    max_speed = max(speeds) if speeds else None
-    avg_speed = round(sum(speeds) / len(speeds), 1) if speeds else None
 
     return _resp(200, {
         "session_key": session_key,
         "driver_number": driver_number,
         "full_name": driver_item.get("full_name"),
-        "name_acronym": driver_item.get("name_acronym"),
-        "team_name": driver_item.get("team_name"),
-        "lap_count": len(laps),
-        "best_lap_duration_sec": best_lap,
-        "avg_speed_kmh": avg_speed,
-        "max_speed_kmh": max_speed,
+        "laps_count": len(laps_response),
+        "laps": laps_response,
     })
 
 
