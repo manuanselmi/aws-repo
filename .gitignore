@@ -1,2 +1,47 @@
-.idea
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# AI tools
 .claude/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+*.egg
+dist/
+build/
+.venv/
+venv/
+env/
+.env
+
+# AWS SAM
+.aws-sam/
+
+# AWS CDK
+cdk.out/
+cdk.context.json
+
+# LocalStack
+volume/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (cdklocal / aws-cdk)
+node_modules/
+package-lock.json
+
+# Logs
+*.log
+
+# Terraform (por si se usa después)
+.terraform/
+*.tfstate
+*.tfstate.backup

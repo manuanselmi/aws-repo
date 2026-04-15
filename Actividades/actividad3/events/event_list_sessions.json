@@ -1,0 +1,12 @@
+{
+  "httpMethod": "GET",
+  "path": "/sessions",
+  "pathParameters": null,
+  "queryStringParameters": {
+    "year": "2024"
+  },
+  "body": null,
+  "headers": {
+    "Content-Type": "application/json"
+  }
+}
