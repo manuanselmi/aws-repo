@@ -1,12 +1,3 @@
-"""
-Lambda: driver_summary
-Descripcion: Dado un session_key y driver_number, calcula el resumen del piloto
-             en esa sesion usando los datos persistidos en DynamoDB.
-             Calcula: cantidad de vueltas, mejor vuelta, velocidad promedio, velocidad maxima.
-             NO llama a OpenF1.
-
-GET /sessions/{session_key}/drivers/{driver_number}/summary
-"""
 import json
 import decimal
 from boto3.dynamodb.conditions import Key
@@ -24,30 +15,29 @@ class DecimalEncoder(json.JSONEncoder):
 def handler(event, context):
     path_params = event.get("pathParameters") or {}
     session_key = path_params.get("session_key") or event.get("session_key")
-    driver_number = path_params.get("driver_number") or event.get("driver_number")
+    driver_id = path_params.get("driver_id") or event.get("driver_id")
 
-    if not session_key or not driver_number:
-        return _resp(400, {"error": "session_key y driver_number son requeridos en el path"})
+    if not session_key or not driver_id:
+        return _resp(400, {"error": "session_key y driver_id son requeridos en el path"})
 
     try:
         session_key = int(session_key)
-        driver_number = int(driver_number)
+        driver_id = int(driver_id)
     except (ValueError, TypeError):
-        return _resp(400, {"error": "session_key y driver_number deben ser numeros enteros"})
+        return _resp(400, {"error": "session_key y driver_id deben ser numeros enteros"})
 
     table = get_table()
 
-    # Verificar que el piloto existe en la sesion
     driver_item = table.get_item(
-        Key={"PK": f"SESSION#{session_key}", "SK": f"DRIVER#{driver_number}"}
+        Key={"PK": f"SESSION#{session_key}", "SK": f"DRIVER#{driver_id}"}
     ).get("Item")
     if not driver_item:
         return _resp(404, {
-            "error": f"Piloto {driver_number} no encontrado en sesion {session_key}.",
-            "hint": f"Verificar que la sesion fue ingestada con POST /sessions/{session_key}/ingest",
+            "error": f"Piloto con driver_id {driver_id} no encontrado en sesion {session_key}.",
         })
 
-    # Consultar todas las vueltas del piloto en esta sesion
+    driver_number = int(driver_item["driver_number"])
+
     result = table.query(
         KeyConditionExpression=Key("PK").eq(f"SESSION#{session_key}#DRIVER#{driver_number}")
     )
@@ -55,11 +45,9 @@ def handler(event, context):
 
     if not laps:
         return _resp(422, {
-            "error": f"No hay vueltas registradas para el piloto {driver_number} en la sesion {session_key}.",
+            "error": f"No hay vueltas registradas para el piloto {driver_id} en la sesion {session_key}.",
         })
 
-    # Calcular metricas
-    # Mejor vuelta: minima lap_duration (ignorar vueltas sin duracion o pit out)
     valid_laps = [
         lap for lap in laps
         if lap.get("lap_duration") and not lap.get("is_pit_out_lap", False)
@@ -70,14 +58,13 @@ def handler(event, context):
         best_lap_item = min(valid_laps, key=lambda l: l["lap_duration"])
         best_lap = float(best_lap_item["lap_duration"])
 
-    # Velocidad maxima en speed trap (st_speed)
     speeds = [float(lap["st_speed"]) for lap in laps if lap.get("st_speed")]
     max_speed = max(speeds) if speeds else None
     avg_speed = round(sum(speeds) / len(speeds), 1) if speeds else None
 
     return _resp(200, {
         "session_key": session_key,
-        "driver_number": driver_number,
+        "driver_id": driver_id,
         "full_name": driver_item.get("full_name"),
         "name_acronym": driver_item.get("name_acronym"),
         "team_name": driver_item.get("team_name"),

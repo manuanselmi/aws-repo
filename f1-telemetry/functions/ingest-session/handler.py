@@ -1,11 +1,3 @@
-"""
-Lambda: ingest_session
-Descripcion: Descarga datos de una sesion desde OpenF1 y los persiste en DynamoDB.
-             Es la unica Lambda que llama a internet.
-
-POST /sessions/{session_key}/ingest
-Body (opcional): { "force": true }  <- sobreescribe si ya fue ingestada
-"""
 import json
 import urllib.request
 import urllib.error
@@ -18,7 +10,6 @@ OPENF1_BASE = "https://api.openf1.org/v1"
 
 
 def handler(event, context):
-    # Leer session_key del path
     path_params = event.get("pathParameters") or {}
     session_key = path_params.get("session_key") or event.get("session_key")
 
@@ -30,7 +21,6 @@ def handler(event, context):
     except (ValueError, TypeError):
         return _resp(400, {"error": "session_key debe ser un numero entero"})
 
-    # Leer flag force del body
     force = False
     if event.get("body"):
         try:
@@ -40,7 +30,6 @@ def handler(event, context):
 
     table = get_table()
 
-    # Idempotencia: si ya existe y no es force, rechazar
     if not force:
         existing = table.get_item(
             Key={"PK": f"SESSION#{session_key}", "SK": "#METADATA"}
@@ -51,26 +40,15 @@ def handler(event, context):
                 "hint": "Enviar {\"force\": true} en el body para re-ingestar.",
             })
 
-    # Paso 1: Obtener metadata de la sesion
-    print(f"Consultando sesion {session_key} en OpenF1...")
     session_data = _openf1_get(f"/sessions?session_key={session_key}")
     if not session_data:
         return _resp(404, {"error": f"Sesion {session_key} no encontrada en OpenF1"})
     session = session_data[0]
 
-    # Paso 2: Obtener pilotos
-    print(f"Consultando pilotos de sesion {session_key}...")
     drivers_data = _openf1_get(f"/drivers?session_key={session_key}")
-
-    # Paso 3: Obtener vueltas
-    print(f"Consultando vueltas de sesion {session_key}...")
     laps_data = _openf1_get(f"/laps?session_key={session_key}")
-
-    # Paso 4: Obtener posiciones (para saber en qué posicion termino cada vuelta)
-    print(f"Consultando posiciones de sesion {session_key}...")
     positions_data = _openf1_get(f"/position?session_key={session_key}")
 
-    # Construir lookup de posiciones por piloto, ordenado por fecha
     positions_by_driver = {}
     for p in positions_data:
         dn = p.get("driver_number")
@@ -82,11 +60,7 @@ def handler(event, context):
     for dn in positions_by_driver:
         positions_by_driver[dn].sort(key=lambda x: x.get("date", ""))
 
-    # Persistir todo en DynamoDB usando batch_writer (hasta 25 items por batch)
-    print("Guardando en DynamoDB...")
     with table.batch_writer() as batch:
-
-        # Item de sesion
         batch.put_item(Item={
             "PK": f"SESSION#{session_key}",
             "SK": "#METADATA",
@@ -97,26 +71,23 @@ def handler(event, context):
             "year": session.get("year") or 0,
             "country_name": session.get("country_name") or "",
             "circuit_short_name": session.get("circuit_short_name") or "",
-            "status": "ingested",
-            "ingested_at": datetime.now(timezone.utc).isoformat(),
         })
 
-        # Items de pilotos
+        driver_id = 0
         for d in drivers_data:
             dn = d.get("driver_number")
             if dn is None:
                 continue
+            driver_id += 1
             batch.put_item(Item={
                 "PK": f"SESSION#{session_key}",
-                "SK": f"DRIVER#{dn}",
+                "SK": f"DRIVER#{driver_id}",
                 "driver_number": dn,
                 "full_name": d.get("full_name") or "",
                 "name_acronym": d.get("name_acronym") or "",
                 "team_name": d.get("team_name") or "",
-                "country_code": d.get("country_code") or "",
             })
 
-        # Items de vueltas
         for lap in laps_data:
             dn = lap.get("driver_number")
             lap_number = lap.get("lap_number")
@@ -138,7 +109,6 @@ def handler(event, context):
                 "is_pit_out_lap": bool(lap.get("is_pit_out_lap", False)),
             }
 
-            # Campos numericos: convertir a Decimal (DynamoDB no acepta float)
             for field in ["lap_duration", "i1_speed", "i2_speed", "st_speed",
                           "duration_sector_1", "duration_sector_2", "duration_sector_3"]:
                 val = lap.get(field)
@@ -150,7 +120,6 @@ def handler(event, context):
 
             batch.put_item(Item=item)
 
-    print(f"Ingesta completa: {len(drivers_data)} pilotos, {len(laps_data)} vueltas.")
     return _resp(200, {
         "session_key": session_key,
         "status": "ingested",
@@ -160,7 +129,6 @@ def handler(event, context):
 
 
 def _get_position_at_lap_end(driver_positions, lap_start_date, lap_duration_sec):
-    """Devuelve la posicion del piloto al final de la vuelta."""
     if not driver_positions or not lap_start_date:
         return None
     try:

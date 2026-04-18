@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: F1 Telemetry - SAM Application (Local-first con DynamoDB)
+Description: F1 Telemetry - SAM Application
 
 Parameters:
   TableName:
@@ -8,7 +8,7 @@ Parameters:
     Default: F1Telemetry
   DynamoEndpoint:
     Type: String
-    Default: http://host.docker.internal:4566
+    Default: http://host.docker.internal:8000
 
 Globals:
   Function:
@@ -23,15 +23,12 @@ Globals:
         AWS_SECRET_ACCESS_KEY: local
 
 Resources:
-
-  # --- 1. Ingestar sesion (llama a OpenF1 y persiste en DynamoDB) ---
   IngestSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: IngestSession
       Handler: handler.handler
       CodeUri: functions/ingest-session/
-      Description: Descarga datos de OpenF1 y los persiste en DynamoDB
       Events:
         Api:
           Type: Api
@@ -39,14 +36,12 @@ Resources:
             Path: /sessions/{session_key}/ingest
             Method: POST
 
-  # --- 2. Listar sesiones ingestadas ---
   ListSessionsFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: ListSessions
       Handler: handler.handler
       CodeUri: functions/list-sessions/
-      Description: Lista sesiones persistidas en DynamoDB
       Events:
         Api:
           Type: Api
@@ -54,14 +49,12 @@ Resources:
             Path: /sessions
             Method: GET
 
-  # --- 3. Listar pilotos de una sesion ---
   ListDriversFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: ListDrivers
       Handler: handler.handler
       CodeUri: functions/list-drivers/
-      Description: Lista pilotos de una sesion desde DynamoDB
       Events:
         Api:
           Type: Api
@@ -69,37 +62,32 @@ Resources:
             Path: /sessions/{session_key}/drivers
             Method: GET
 
-  # --- 4. Resumen de un piloto ---
   DriverSummaryFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: DriverSummary
       Handler: handler.handler
       CodeUri: functions/driver-summary/
-      Description: Resumen de metricas de un piloto calculadas desde DynamoDB
       Events:
         Api:
           Type: Api
           Properties:
-            Path: /sessions/{session_key}/drivers/{driver_number}/summary
+            Path: /sessions/{session_key}/drivers/{driver_id}/summary
             Method: GET
 
-  # --- 5. Vueltas de un piloto ---
   DriverLapsFunction:
     Type: AWS::Serverless::Function
     Properties:
       FunctionName: DriverLaps
       Handler: handler.handler
       CodeUri: functions/driver-laps/
-      Description: Lista de vueltas de un piloto con posicion al final de cada vuelta
       Events:
         Api:
           Type: Api
           Properties:
-            Path: /sessions/{session_key}/drivers/{driver_number}/laps
+            Path: /sessions/{session_key}/drivers/{driver_id}/laps
             Method: GET
 
 Outputs:
   ApiUrl:
-    Description: URL base del API (local)
     Value: http://localhost:3000

@@ -1,10 +1,3 @@
-"""
-Lambda: list_drivers
-Descripcion: Lista los pilotos de una sesion ya ingestada en DynamoDB.
-             NO llama a OpenF1.
-
-GET /sessions/{session_key}/drivers
-"""
 import json
 import decimal
 from boto3.dynamodb.conditions import Key
@@ -33,17 +26,14 @@ def handler(event, context):
 
     table = get_table()
 
-    # Verificar que la sesion existe
     session_item = table.get_item(
         Key={"PK": f"SESSION#{session_key}", "SK": "#METADATA"}
     ).get("Item")
     if not session_item:
         return _resp(404, {
             "error": f"La sesion {session_key} no fue ingestada.",
-            "hint": f"Usar POST /sessions/{session_key}/ingest primero.",
         })
 
-    # Consultar pilotos: PK = SESSION#sk, SK begins_with DRIVER#
     result = table.query(
         KeyConditionExpression=(
             Key("PK").eq(f"SESSION#{session_key}") &
@@ -54,11 +44,10 @@ def handler(event, context):
 
     drivers = [
         {
-            "driver_number": item.get("driver_number"),
+            "driver_id": int(item["SK"].split("#")[1]),
+            "driver_number": int(item["driver_number"]),
             "full_name": item.get("full_name"),
-            "name_acronym": item.get("name_acronym"),
             "team_name": item.get("team_name"),
-            "country_code": item.get("country_code"),
         }
         for item in items
     ]
