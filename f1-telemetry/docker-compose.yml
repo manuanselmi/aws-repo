@@ -1,11 +1,14 @@
 version: "3.8"
 services:
-  dynamodb-local:
-    image: amazon/dynamodb-local
-    container_name: dynamodb-local
+  localstack:
+    image: localstack/localstack
+    container_name: localstack
     ports:
-      - "8000:8000"
-    command: "-jar DynamoDBLocal.jar -sharedDb -inMemory"
+      - "4566:4566"
+    environment:
+      SERVICES: dynamodb
+      DEFAULT_REGION: us-east-1
+      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
 
   dynamodb-admin:
     image: aaronshaf/dynamodb-admin
@@ -13,9 +16,9 @@ services:
     ports:
       - "8001:8001"
     environment:
-      DYNAMO_ENDPOINT: http://dynamodb-local:8000
+      DYNAMO_ENDPOINT: http://localstack:4566
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: local
       AWS_SECRET_ACCESS_KEY: local
     depends_on:
-      - dynamodb-local
+      - localstack

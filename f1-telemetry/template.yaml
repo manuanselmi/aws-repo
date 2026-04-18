@@ -8,7 +8,7 @@ Parameters:
     Default: F1Telemetry
   DynamoEndpoint:
     Type: String
-    Default: http://host.docker.internal:8000
+    Default: http://host.docker.internal:4566
 
 Globals:
   Function:
