@@ -2,52 +2,46 @@ AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: F1 Telemetry - SAM Application
 
+Parameters:
+  TableName:
+    Type: String
+    Default: F1Telemetry
+  DynamoEndpoint:
+    Type: String
+    Default: http://host.docker.internal:4566
+
 Globals:
   Function:
     Runtime: python3.12
-    Timeout: 30
+    Timeout: 60
     MemorySize: 256
+    Environment:
+      Variables:
+        TABLE_NAME: !Ref TableName
+        DYNAMODB_ENDPOINT: !Ref DynamoEndpoint
+        AWS_ACCESS_KEY_ID: local
+        AWS_SECRET_ACCESS_KEY: local
 
 Resources:
-
-  # --- 1. List Drivers ---
-  ListDriversFunction:
+  IngestSessionFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: IngestSession
       Handler: handler.handler
-      CodeUri: functions/list-drivers/
-      Policies:
-        - AWSLambdaBasicExecutionRole
+      CodeUri: functions/ingest-session/
       Events:
         Api:
           Type: Api
           Properties:
-            Path: /drivers
-            Method: GET
+            Path: /sessions/{session_key}/ingest
+            Method: POST
 
-  # --- 2. Get Session ---
-  GetSessionFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: handler.handler
-      CodeUri: functions/get-session/
-      Policies:
-        - AWSLambdaBasicExecutionRole
-      Events:
-        Api:
-          Type: Api
-          Properties:
-            Path: /sessions/{session_key}
-            Method: GET
-
-  # --- 3. List Sessions ---
   ListSessionsFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: ListSessions
       Handler: handler.handler
       CodeUri: functions/list-sessions/
-      Policies:
-        - AWSLambdaBasicExecutionRole
       Events:
         Api:
           Type: Api
@@ -55,22 +49,45 @@ Resources:
             Path: /sessions
             Method: GET
 
-  # --- 4. Driver Summary ---
-  DriverSummaryFunction:
+  ListDriversFunction:
     Type: AWS::Serverless::Function
     Properties:
+      FunctionName: ListDrivers
       Handler: handler.handler
-      CodeUri: functions/driver-summary/
-      Policies:
-        - AWSLambdaBasicExecutionRole
+      CodeUri: functions/list-drivers/
       Events:
         Api:
           Type: Api
           Properties:
-            Path: /drivers/summary
+            Path: /sessions/{session_key}/drivers
+            Method: GET
+
+  DriverSummaryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: DriverSummary
+      Handler: handler.handler
+      CodeUri: functions/driver-summary/
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/drivers/{driver_id}/summary
+            Method: GET
+
+  DriverLapsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: DriverLaps
+      Handler: handler.handler
+      CodeUri: functions/driver-laps/
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/drivers/{driver_id}/laps
             Method: GET
 
 Outputs:
   ApiUrl:
-    Description: URL base del API Gateway
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod"
+    Value: http://localhost:3000
