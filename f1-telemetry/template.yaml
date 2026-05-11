@@ -9,10 +9,13 @@ Parameters:
   DynamoEndpoint:
     Type: String
     Default: http://host.docker.internal:4566
+  SqsEndpoint:
+    Type: String
+    Default: http://host.docker.internal:4566
 
 Globals:
   Function:
-    Runtime: python3.12
+    Runtime: python3.13
     Timeout: 60
     MemorySize: 256
     Environment:
@@ -87,6 +90,28 @@ Resources:
           Properties:
             Path: /sessions/{session_key}/drivers/{driver_id}/laps
             Method: GET
+
+  SimulationQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: SimulationQueue
+
+  StartSimulationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: StartSimulation
+      Handler: handler.handler
+      CodeUri: functions/start-simulation/
+      Environment:
+        Variables:
+          SQS_ENDPOINT: !Ref SqsEndpoint
+          SIMULATION_QUEUE_URL: http://localhost.localstack.cloud:4566/000000000000/SimulationQueue
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /start-simulation
+            Method: POST
 
 Outputs:
   ApiUrl:
