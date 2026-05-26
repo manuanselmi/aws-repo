@@ -1,5 +1,7 @@
 import os
+
 import boto3
+
 
 def get_table():
     endpoint = os.environ.get("DYNAMODB_ENDPOINT", "http://localhost:4566")

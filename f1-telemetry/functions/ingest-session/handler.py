@@ -1,7 +1,7 @@
 import json
-import urllib.request
 import urllib.error
-from datetime import datetime, timezone, timedelta
+import urllib.request
+from datetime import datetime, timedelta
 from decimal import Decimal
 
 from dynamo_client import get_table

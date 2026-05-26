@@ -1,0 +1,87 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Target environment"
+        required: true
+        default: "local"
+        type: choice
+        options:
+          - local
+
+jobs:
+  deploy:
+    name: Deploy to LocalStack (${{ github.event.inputs.environment }})
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    services:
+      localstack:
+        image: localstack/localstack:latest
+        ports:
+          - 4566:4566
+        env:
+          SERVICES: dynamodb,sqs
+        options: >-
+          --health-cmd "curl -sf http://localhost:4566/_localstack/health | python3 -c \"import sys,json; s=json.load(sys.stdin)['services']; sys.exit(0 if s.get('dynamodb')=='available' else 1)\""
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
+
+    env:
+      AWS_DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      DYNAMODB_ENDPOINT: http://localhost:4566
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Install samlocal
+        run: pip install aws-sam-cli-local
+
+      - name: Wait for LocalStack
+        run: |
+          for i in $(seq 1 20); do
+            curl -sf http://localhost:4566/_localstack/health > /dev/null 2>&1 && break
+            sleep 3
+          done
+
+      - name: Create DynamoDB table
+        run: python scripts/create_table.py
+
+      - name: Build
+        run: samlocal build
+
+      - name: Deploy
+        run: |
+          samlocal deploy \
+            --stack-name f1-telemetry-${{ github.event.inputs.environment }} \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --region us-east-1 \
+            --parameter-overrides \
+              TableName=F1Telemetry \
+              DynamoEndpoint=http://localhost:4566 \
+              SqsEndpoint=http://localhost:4566
+
+      - name: Smoke test
+        run: |
+          API_URL=$(aws cloudformation describe-stacks \
+            --stack-name f1-telemetry-${{ github.event.inputs.environment }} \
+            --endpoint-url http://localhost:4566 \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text 2>/dev/null || echo "http://localhost:3000")
+          curl -sf "$API_URL/sessions" || echo "No sessions yet"

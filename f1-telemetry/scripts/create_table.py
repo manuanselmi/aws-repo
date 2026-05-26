@@ -1,12 +1,14 @@
+import os
+
 import boto3
 from botocore.exceptions import ClientError
 
 dynamodb = boto3.client(
     "dynamodb",
-    endpoint_url="http://localhost:4566",
+    endpoint_url=os.environ.get("DYNAMODB_ENDPOINT", "http://localhost:4566"),
     region_name="us-east-1",
-    aws_access_key_id="local",
-    aws_secret_access_key="local",
+    aws_access_key_id=os.environ.get("AWS_ACCESS_KEY_ID", "local"),
+    aws_secret_access_key=os.environ.get("AWS_SECRET_ACCESS_KEY", "local"),
 )
 
 TABLE_NAME = "F1Telemetry"

@@ -1,9 +1,9 @@
+import decimal
 import json
 import os
-import decimal
+
 import boto3
 from boto3.dynamodb.conditions import Key
-
 from dynamo_client import get_table
 
 
@@ -98,7 +98,7 @@ def handler(event, context):
     )
 
     # Ordenar globalmente por lap_number para publicar en orden
-    all_laps.sort(key=lambda l: (l["lap_number"] or 0, l["driver_number"]))
+    all_laps.sort(key=lambda lap: (lap["lap_number"] or 0, lap["driver_number"]))
 
     # Calcular el tiempo acumulado por piloto para obtener el delay proporcional
     elapsed_by_driver = {}
@@ -125,7 +125,9 @@ def handler(event, context):
             "position": lap.get("position"),
             "is_pit_out_lap": lap["is_pit_out_lap"],
             "scheduled_delay_seconds": round(delay_seconds, 3),
-            "compression_ratio": round(total_duration_sec / duration_seconds, 4) if duration_seconds else None,
+            "compression_ratio": (
+                round(total_duration_sec / duration_seconds, 4) if duration_seconds else None
+            ),
         })
 
         # Acumular solo vueltas con duración válida y no pit-out
@@ -141,7 +143,9 @@ def handler(event, context):
             MessageBody=json.dumps(evt, cls=DecimalEncoder),
         )
 
-    compression_ratio = round(total_duration_sec / duration_seconds, 4) if duration_seconds else None
+    compression_ratio = (
+        round(total_duration_sec / duration_seconds, 4) if duration_seconds else None
+    )
 
     return _resp(200, {
         "session_key": session_key,

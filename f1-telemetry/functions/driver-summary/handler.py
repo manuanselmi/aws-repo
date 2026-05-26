@@ -1,7 +1,7 @@
-import json
 import decimal
-from boto3.dynamodb.conditions import Key
+import json
 
+from boto3.dynamodb.conditions import Key
 from dynamo_client import get_table
 
 
@@ -45,7 +45,9 @@ def handler(event, context):
 
     if not laps:
         return _resp(422, {
-            "error": f"No hay vueltas registradas para el piloto {driver_id} en la sesion {session_key}.",
+            "error": (
+                f"No hay vueltas registradas para el piloto {driver_id} en la sesion {session_key}."
+            ),
         })
 
     valid_laps = [
@@ -55,7 +57,7 @@ def handler(event, context):
 
     best_lap = None
     if valid_laps:
-        best_lap_item = min(valid_laps, key=lambda l: l["lap_duration"])
+        best_lap_item = min(valid_laps, key=lambda lap: lap["lap_duration"])
         best_lap = float(best_lap_item["lap_duration"])
 
     speeds = [float(lap["st_speed"]) for lap in laps if lap.get("st_speed")]

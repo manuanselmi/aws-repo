@@ -1,7 +1,7 @@
-import json
 import decimal
-from boto3.dynamodb.conditions import Key
+import json
 
+from boto3.dynamodb.conditions import Key
 from dynamo_client import get_table
 
 
@@ -45,10 +45,12 @@ def handler(event, context):
 
     if not laps:
         return _resp(404, {
-            "error": f"No hay vueltas registradas para el piloto {driver_id} en la sesion {session_key}.",
+            "error": (
+                f"No hay vueltas registradas para el piloto {driver_id} en la sesion {session_key}."
+            ),
         })
 
-    laps.sort(key=lambda l: l.get("lap_number", 0))
+    laps.sort(key=lambda lap: lap.get("lap_number", 0))
 
     laps_response = [
         {

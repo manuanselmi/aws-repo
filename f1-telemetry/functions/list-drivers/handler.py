@@ -1,7 +1,7 @@
-import json
 import decimal
-from boto3.dynamodb.conditions import Key
+import json
 
+from boto3.dynamodb.conditions import Key
 from dynamo_client import get_table
 
 
