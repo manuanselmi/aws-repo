@@ -1,7 +1,6 @@
 import decimal
 import json
 
-from boto3.dynamodb.conditions import Key
 from dynamo_client import get_table
 
 _CORS = {
@@ -35,36 +34,24 @@ def handler(event, context):
 
     table = get_table()
 
-    session_item = table.get_item(
-        Key={"PK": f"SESSION#{session_key}", "SK": "#METADATA"}
+    state_item = table.get_item(
+        Key={"PK": f"SESSION#{session_key}", "SK": "SIMULATION#STATE"}
     ).get("Item")
-    if not session_item:
+
+    if not state_item:
         return _resp(404, {
-            "error": f"La sesion {session_key} no fue ingestada.",
+            "error": f"No hay simulacion iniciada para la sesion {session_key}.",
         })
-
-    result = table.query(
-        KeyConditionExpression=(
-            Key("PK").eq(f"SESSION#{session_key}") &
-            Key("SK").begins_with("DRIVER#")
-        )
-    )
-    items = result.get("Items", [])
-
-    drivers = [
-        {
-            "driver_id": int(item["SK"].split("#")[1]),
-            "driver_number": int(item["driver_number"]),
-            "full_name": item.get("full_name"),
-            "team_name": item.get("team_name"),
-        }
-        for item in items
-    ]
 
     return _resp(200, {
         "session_key": session_key,
-        "drivers_count": len(drivers),
-        "drivers": drivers,
+        "status": state_item.get("status"),
+        "events_published": state_item.get("events_published"),
+        "events_processed": int(state_item.get("events_processed", 0)),
+        "duration_seconds": state_item.get("duration_seconds"),
+        "started_at": state_item.get("started_at"),
+        "stopped_at": state_item.get("stopped_at"),
+        "updated_at": state_item.get("updated_at"),
     })
 
 
