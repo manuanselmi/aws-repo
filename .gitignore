@@ -1,13 +1,9 @@
-# IDEs
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# AI tools
 .claude/
 
-# Python
 __pycache__/
 *.py[cod]
 *.pyo
@@ -17,31 +13,27 @@ dist/
 build/
 .venv/
 venv/
-env/
 .env
 
-# AWS SAM
 .aws-sam/
 
-# AWS CDK
 cdk.out/
 cdk.context.json
 
-# LocalStack
 volume/
 
-# OS
 .DS_Store
 Thumbs.db
 
-# Node (cdklocal / aws-cdk)
 node_modules/
 package-lock.json
 
-# Logs
-*.log
+claude.md
 
-# Terraform (por si se usa después)
+*.log
+*.zip
+*.tar.gz
+
 .terraform/
 *.tfstate
 *.tfstate.backup

@@ -4,6 +4,12 @@ import json
 from boto3.dynamodb.conditions import Key
 from dynamo_client import get_table
 
+_CORS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+}
+
 
 class DecimalEncoder(json.JSONEncoder):
     def default(self, obj):
@@ -13,6 +19,9 @@ class DecimalEncoder(json.JSONEncoder):
 
 
 def handler(event, context):
+    if event.get("httpMethod") == "OPTIONS":
+        return {"statusCode": 200, "headers": _CORS, "body": ""}
+
     path_params = event.get("pathParameters") or {}
     session_key = path_params.get("session_key") or event.get("session_key")
     driver_id = path_params.get("driver_id") or event.get("driver_id")
@@ -74,6 +83,6 @@ def handler(event, context):
 def _resp(status, body):
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": {"Content-Type": "application/json", **_CORS},
         "body": json.dumps(body, cls=DecimalEncoder),
     }

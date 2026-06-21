@@ -24,6 +24,11 @@ Globals:
         DYNAMODB_ENDPOINT: !Ref DynamoEndpoint
         AWS_ACCESS_KEY_ID: local
         AWS_SECRET_ACCESS_KEY: local
+  Api:
+    Cors:
+      AllowOrigin: "'*'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowMethods: "'GET,POST,OPTIONS'"
 
 Resources:
   IngestSessionFunction:
@@ -38,6 +43,11 @@ Resources:
           Properties:
             Path: /sessions/{session_key}/ingest
             Method: POST
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/ingest
+            Method: OPTIONS
 
   ListSessionsFunction:
     Type: AWS::Serverless::Function
@@ -51,6 +61,11 @@ Resources:
           Properties:
             Path: /sessions
             Method: GET
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /sessions
+            Method: OPTIONS
 
   ListDriversFunction:
     Type: AWS::Serverless::Function
@@ -64,6 +79,11 @@ Resources:
           Properties:
             Path: /sessions/{session_key}/drivers
             Method: GET
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/drivers
+            Method: OPTIONS
 
   DriverSummaryFunction:
     Type: AWS::Serverless::Function
@@ -77,6 +97,11 @@ Resources:
           Properties:
             Path: /sessions/{session_key}/drivers/{driver_id}/summary
             Method: GET
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/drivers/{driver_id}/summary
+            Method: OPTIONS
 
   DriverLapsFunction:
     Type: AWS::Serverless::Function
@@ -90,11 +115,24 @@ Resources:
           Properties:
             Path: /sessions/{session_key}/drivers/{driver_id}/laps
             Method: GET
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/drivers/{driver_id}/laps
+            Method: OPTIONS
+
+  SimulationDLQ:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: SimulationDLQ
 
   SimulationQueue:
     Type: AWS::SQS::Queue
     Properties:
       QueueName: SimulationQueue
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt SimulationDLQ.Arn
+        maxReceiveCount: 3
 
   StartSimulationFunction:
     Type: AWS::Serverless::Function
@@ -112,6 +150,101 @@ Resources:
           Properties:
             Path: /start-simulation
             Method: POST
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /start-simulation
+            Method: OPTIONS
+
+  StopSimulationFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: StopSimulation
+      Handler: handler.handler
+      CodeUri: functions/stop-simulation/
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /stop-simulation
+            Method: POST
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /stop-simulation
+            Method: OPTIONS
+
+  LoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: Login
+      Handler: handler.handler
+      CodeUri: functions/login/
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /login
+            Method: POST
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /login
+            Method: OPTIONS
+
+  DriverLiveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: DriverLive
+      Handler: handler.handler
+      CodeUri: functions/driver-live/
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/drivers/{driver_id}/live
+            Method: GET
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/drivers/{driver_id}/live
+            Method: OPTIONS
+
+  SimulationLiveFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SimulationLive
+      Handler: handler.handler
+      CodeUri: functions/simulation-live/
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/simulation/live
+            Method: GET
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/simulation/live
+            Method: OPTIONS
+
+  SimulationStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: SimulationStatus
+      Handler: handler.handler
+      CodeUri: functions/simulation-status/
+      Events:
+        Api:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/simulation/status
+            Method: GET
+        ApiOptions:
+          Type: Api
+          Properties:
+            Path: /sessions/{session_key}/simulation/status
+            Method: OPTIONS
 
 Outputs:
   ApiUrl:

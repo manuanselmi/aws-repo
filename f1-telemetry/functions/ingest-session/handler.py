@@ -8,8 +8,23 @@ from dynamo_client import get_table
 
 OPENF1_BASE = "https://api.openf1.org/v1"
 
+_CORS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+}
+
 
 def handler(event, context):
+    if event.get("httpMethod") == "OPTIONS":
+        return {"statusCode": 200, "headers": _CORS, "body": ""}
+    try:
+        return _handle(event)
+    except Exception as e:
+        return _resp(500, {"error": f"Error interno: {str(e)}"})
+
+
+def _handle(event):
     path_params = event.get("pathParameters") or {}
     session_key = path_params.get("session_key") or event.get("session_key")
 
@@ -93,6 +108,7 @@ def handler(event, context):
             lap_number = lap.get("lap_number")
             if dn is None or lap_number is None:
                 continue
+            lap_number = int(lap_number)
 
             position = _get_position_at_lap_end(
                 positions_by_driver.get(dn, []),
@@ -161,6 +177,6 @@ def _openf1_get(path):
 def _resp(status, body):
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": {"Content-Type": "application/json", **_CORS},
         "body": json.dumps(body),
     }

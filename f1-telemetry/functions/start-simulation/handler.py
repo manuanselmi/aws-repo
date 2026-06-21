@@ -1,10 +1,18 @@
 import decimal
 import json
 import os
+import time as time_module
+from datetime import datetime, timezone
 
 import boto3
 from boto3.dynamodb.conditions import Key
 from dynamo_client import get_table
+
+_CORS = {
+    "Access-Control-Allow-Origin": "*",
+    "Access-Control-Allow-Headers": "Content-Type,Authorization",
+    "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+}
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -26,6 +34,9 @@ def _get_sqs_client():
 
 
 def handler(event, context):
+    if event.get("httpMethod") == "OPTIONS":
+        return {"statusCode": 200, "headers": _CORS, "body": ""}
+
     body = {}
     if event.get("body"):
         try:
@@ -85,22 +96,28 @@ def handler(event, context):
                 "lap_duration": lap.get("lap_duration"),
                 "position": lap.get("position"),
                 "is_pit_out_lap": lap.get("is_pit_out_lap", False),
+                "st_speed": float(lap["st_speed"]) if lap.get("st_speed") else None,
             })
 
     if not all_laps:
         return _resp(422, {"error": f"La sesion {session_key} no tiene vueltas registradas."})
 
-    # Calcular total_duration_sec: suma de lap_duration excluyendo nulos y pit-out laps
-    total_duration_sec = sum(
-        float(lap["lap_duration"])
-        for lap in all_laps
-        if lap["lap_duration"] is not None and not lap["is_pit_out_lap"]
-    )
+    # total_duration_sec = la duracion de carrera del piloto mas lento (el que
+    # define el largo total de la carrera). Antes se sumaba lap_duration de TODOS
+    # los pilotos, haciendo el denominador ~N veces mas grande y colapsando toda
+    # la simulacion en duration_seconds / N segundos.
+    total_by_driver = {}
+    for lap in all_laps:
+        if lap["lap_duration"] is not None and not lap["is_pit_out_lap"]:
+            dn = lap["driver_number"]
+            total_by_driver[dn] = total_by_driver.get(dn, 0.0) + float(lap["lap_duration"])
+    total_duration_sec = max(total_by_driver.values()) if total_by_driver else 0.0
 
     # Ordenar globalmente por lap_number para publicar en orden
     all_laps.sort(key=lambda lap: (lap["lap_number"] or 0, lap["driver_number"]))
 
     # Calcular el tiempo acumulado por piloto para obtener el delay proporcional
+    sim_started_at = time_module.time()  # epoch float, unique per simulation run
     elapsed_by_driver = {}
     events = []
     for lap in all_laps:
@@ -124,7 +141,9 @@ def handler(event, context):
             "lap_duration_sec": lap_duration_sec,
             "position": lap.get("position"),
             "is_pit_out_lap": lap["is_pit_out_lap"],
+            "st_speed": lap.get("st_speed"),
             "scheduled_delay_seconds": round(delay_seconds, 3),
+            "sim_started_at": sim_started_at,
             "compression_ratio": (
                 round(total_duration_sec / duration_seconds, 4) if duration_seconds else None
             ),
@@ -134,6 +153,45 @@ def handler(event, context):
         if lap_duration_sec is not None and not lap["is_pit_out_lap"]:
             elapsed_by_driver[dn] += lap_duration_sec
 
+    now = datetime.now(timezone.utc).isoformat()
+
+    # Reset LIVE#STATE for every driver before publishing events.
+    # This clears stale data from the previous simulation so the frontend never
+    # shows old lap/position data while the new race is starting.
+    for driver in drivers:
+        driver_number = int(driver["driver_number"])
+        table.put_item(Item={
+            "PK": f"SESSION#{session_key}#DRIVER#{driver_number}",
+            "SK": "LIVE#STATE",
+            "session_key": session_key,
+            "driver_number": driver_number,
+            "current_lap": 0,
+            "status": "STARTING",
+            "updated_at": now,
+        })
+
+    compression_ratio = (
+        round(total_duration_sec / duration_seconds, 4) if duration_seconds else None
+    )
+
+    # Write SIMULATION#STATE BEFORE publishing to SQS. The consumer discards any
+    # message whose session has no SIMULATION#STATE yet (treated as stale), so if
+    # we published first the early laps (including lap 1) could be dropped while
+    # this loop is still running — making a later lap appear first.
+    table.put_item(Item={
+        "PK": f"SESSION#{session_key}",
+        "SK": "SIMULATION#STATE",
+        "session_key": session_key,
+        "status": "RUNNING",
+        "duration_seconds": duration_seconds,
+        "events_published": len(events),
+        "events_processed": 0,
+        "started_at": now,
+        "updated_at": now,
+        # epoch stored so the consumer can discard messages from previous runs
+        "sim_epoch": decimal.Decimal(str(round(sim_started_at, 2))),
+    })
+
     sqs = _get_sqs_client()
     queue_url = os.environ.get("SIMULATION_QUEUE_URL")
 
@@ -142,10 +200,6 @@ def handler(event, context):
             QueueUrl=queue_url,
             MessageBody=json.dumps(evt, cls=DecimalEncoder),
         )
-
-    compression_ratio = (
-        round(total_duration_sec / duration_seconds, 4) if duration_seconds else None
-    )
 
     return _resp(200, {
         "session_key": session_key,
@@ -160,6 +214,6 @@ def handler(event, context):
 def _resp(status, body):
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": {"Content-Type": "application/json", **_CORS},
         "body": json.dumps(body, cls=DecimalEncoder),
     }

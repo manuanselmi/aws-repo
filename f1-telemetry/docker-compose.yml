@@ -1,14 +1,17 @@
-version: "3.8"
 services:
   localstack:
-    image: localstack/localstack
+    image: localstack/localstack:3.8.1
     container_name: localstack
     ports:
       - "4566:4566"
     environment:
-      SERVICES: dynamodb, sqs
+      SERVICES: dynamodb,sqs
       DEFAULT_REGION: us-east-1
-      LOCALSTACK_AUTH_TOKEN: ${LOCALSTACK_AUTH_TOKEN}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:4566/_localstack/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
 
   dynamodb-admin:
     image: aaronshaf/dynamodb-admin
@@ -21,4 +24,68 @@ services:
       AWS_ACCESS_KEY_ID: local
       AWS_SECRET_ACCESS_KEY: local
     depends_on:
-      - localstack
+      localstack:
+        condition: service_healthy
+
+  consumer:
+    build: ./consumer
+    container_name: f1-consumer
+    environment:
+      AWS_ENDPOINT_URL: http://localstack:4566
+      DYNAMODB_ENDPOINT: http://localstack:4566
+      SQS_ENDPOINT: http://localstack:4566
+      TABLE_NAME: F1Telemetry
+      SIMULATION_QUEUE_URL: http://localstack:4566/000000000000/SimulationQueue
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    depends_on:
+      localstack:
+        condition: service_healthy
+    restart: unless-stopped
+
+  metrics-exporter:
+    build: ./metrics-exporter
+    container_name: f1-metrics-exporter
+    ports:
+      - "9100:9100"
+    environment:
+      DYNAMODB_ENDPOINT: http://localstack:4566
+      TABLE_NAME: F1Telemetry
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-east-1
+    depends_on:
+      localstack:
+        condition: service_healthy
+    restart: unless-stopped
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: f1-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    depends_on:
+      - metrics-exporter
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: f1-grafana
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped

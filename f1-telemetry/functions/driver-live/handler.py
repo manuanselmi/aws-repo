@@ -1,7 +1,6 @@
 import decimal
 import json
 
-from boto3.dynamodb.conditions import Key
 from dynamo_client import get_table
 
 _CORS = {
@@ -47,42 +46,33 @@ def handler(event, context):
 
     driver_number = int(driver_item["driver_number"])
 
-    result = table.query(
-        KeyConditionExpression=Key("PK").eq(f"SESSION#{session_key}#DRIVER#{driver_number}")
-    )
-    laps = result.get("Items", [])
+    live_item = table.get_item(
+        Key={
+            "PK": f"SESSION#{session_key}#DRIVER#{driver_number}",
+            "SK": "LIVE#STATE",
+        }
+    ).get("Item")
 
-    if not laps:
-        return _resp(422, {
+    if not live_item:
+        return _resp(404, {
             "error": (
-                f"No hay vueltas registradas para el piloto {driver_id} en la sesion {session_key}."
+                f"No hay estado live para el piloto {driver_id} en la sesion {session_key}. "
+                "Inicia la simulacion primero."
             ),
         })
-
-    valid_laps = [
-        lap for lap in laps
-        if lap.get("lap_duration") and not lap.get("is_pit_out_lap", False)
-    ]
-
-    best_lap = None
-    if valid_laps:
-        best_lap_item = min(valid_laps, key=lambda lap: lap["lap_duration"])
-        best_lap = float(best_lap_item["lap_duration"])
-
-    speeds = [float(lap["st_speed"]) for lap in laps if lap.get("st_speed")]
-    max_speed = max(speeds) if speeds else None
-    avg_speed = round(sum(speeds) / len(speeds), 1) if speeds else None
 
     return _resp(200, {
         "session_key": session_key,
         "driver_id": driver_id,
-        "full_name": driver_item.get("full_name"),
-        "name_acronym": driver_item.get("name_acronym"),
-        "team_name": driver_item.get("team_name"),
-        "lap_count": len(laps),
-        "best_lap_duration_sec": best_lap,
-        "avg_speed_kmh": avg_speed,
-        "max_speed_kmh": max_speed,
+        "driver_number": driver_number,
+        "current_lap": live_item.get("current_lap"),
+        "position": live_item.get("position"),
+        "speed": live_item.get("speed"),
+        "gap_ms": live_item.get("gap_ms"),
+        "x": live_item.get("x"),
+        "y": live_item.get("y"),
+        "status": live_item.get("status", "RUNNING"),
+        "updated_at": live_item.get("updated_at"),
     })
 
 
