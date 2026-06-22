@@ -161,7 +161,10 @@ def process_message(table, sqs, queue_url, message):
     # The next run publishes new messages with a new sim_epoch; comparing
     # epoch ensures stale messages are silently dropped.
     if is_stale_or_stopped(table, session_key, msg_epoch):
-        print(f"[INFO] {session_key} STOPPED o mensaje de sim diferente (epoch={msg_epoch}) — descartado.")
+        print(
+            f"[INFO] {session_key} STOPPED o mensaje de sim diferente "
+            f"(epoch={msg_epoch}) — descartado."
+        )
         return
 
     # Wait until this event's scheduled wall-clock time

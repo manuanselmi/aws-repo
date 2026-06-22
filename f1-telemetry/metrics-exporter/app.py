@@ -1,9 +1,8 @@
 import os
-import time
 
 import boto3
 from flask import Flask, Response
-from prometheus_client import Gauge, generate_latest, CONTENT_TYPE_LATEST
+from prometheus_client import CONTENT_TYPE_LATEST, Gauge, generate_latest
 
 app = Flask(__name__)
 

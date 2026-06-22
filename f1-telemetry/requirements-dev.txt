@@ -1,2 +1,4 @@
 ruff
+pytest>=8.0
+pytest-cov
 boto3

@@ -34,7 +34,9 @@ def handler(event, context):
 
     sessions = [
         {
-            "session_key": int(item["session_key"]) if item.get("session_key") is not None else None,
+            "session_key": (
+                int(item["session_key"]) if item.get("session_key") is not None else None
+            ),
             "session_name": item.get("session_name"),
             "country_name": item.get("country_name"),
             "date_start": item.get("date_start"),

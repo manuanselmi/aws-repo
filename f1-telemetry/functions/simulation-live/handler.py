@@ -45,7 +45,9 @@ def handler(event, context):
     drivers = drivers_result.get("Items", [])
 
     if not drivers:
-        return _resp(404, {"error": f"La sesion {session_key} no fue ingestada o no tiene pilotos."})
+        return _resp(
+            404, {"error": f"La sesion {session_key} no fue ingestada o no tiene pilotos."}
+        )
 
     # Single batch call instead of 20 individual get_item calls.
     # Uses table.meta.client so the same client is used in tests.

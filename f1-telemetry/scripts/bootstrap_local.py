@@ -21,7 +21,9 @@ def wait_for_localstack(max_attempts=30):
     url = ENDPOINT.replace("4566", "4566") + "/_localstack/health"
     for attempt in range(max_attempts):
         try:
-            with urllib.request.urlopen(url.replace(":4566/_localstack", ":4566/_localstack"), timeout=3):
+            with urllib.request.urlopen(
+                url.replace(":4566/_localstack", ":4566/_localstack"), timeout=3
+            ):
                 print("LocalStack disponible.")
                 return
         except Exception:
