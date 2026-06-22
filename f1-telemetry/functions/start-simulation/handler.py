@@ -84,9 +84,13 @@ def handler(event, context):
     all_laps = []
     for driver in drivers:
         driver_number = int(driver["driver_number"])
+        # begins_with("LAP#") is REQUIRED: this partition also holds the LIVE#STATE
+        # item from a previous run. Without the filter it would be picked up as a
+        # bogus "lap" (lap_number=None) and published as a junk SQS event.
         laps_result = table.query(
-            KeyConditionExpression=Key("PK").eq(
-                f"SESSION#{session_key}#DRIVER#{driver_number}"
+            KeyConditionExpression=(
+                Key("PK").eq(f"SESSION#{session_key}#DRIVER#{driver_number}") &
+                Key("SK").begins_with("LAP#")
             )
         )
         for lap in laps_result.get("Items", []):
@@ -194,6 +198,17 @@ def handler(event, context):
 
     sqs = _get_sqs_client()
     queue_url = os.environ.get("SIMULATION_QUEUE_URL")
+
+    # Purge any leftover messages from previous runs BEFORE publishing this run's
+    # events. Without this, stale messages (a stopped/restarted run) linger in the
+    # queue; the consumer drops them by epoch but in-flight messages from an
+    # interrupted run could leave events_processed short of events_published, so
+    # the race never reaches 100% / FINISHED. A clean queue per run guarantees the
+    # consumer processes exactly the events we just published.
+    try:
+        sqs.purge_queue(QueueUrl=queue_url)
+    except Exception as e:
+        print(f"[WARN] purge_queue fallo (continuando): {e}")
 
     for evt in events:
         sqs.send_message(

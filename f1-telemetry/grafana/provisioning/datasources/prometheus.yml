@@ -3,6 +3,10 @@ apiVersion: 1
 datasources:
   - name: Prometheus
     type: prometheus
+    # Must match the datasource uid hardcoded in the dashboard panels
+    # (grafana/dashboards/f1-telemetry.json -> "datasource": { "uid": "prometheus" }).
+    # Without this, Grafana assigns a random uid and every panel shows "No data".
+    uid: prometheus
     access: proxy
     url: http://prometheus:9090
     isDefault: true

@@ -47,8 +47,13 @@ def handler(event, context):
 
     driver_number = int(driver_item["driver_number"])
 
+    # begins_with("LAP#") excludes the simulator's LIVE#STATE item that shares this
+    # partition (it has no lap_duration/st_speed and would inflate lap_count).
     result = table.query(
-        KeyConditionExpression=Key("PK").eq(f"SESSION#{session_key}#DRIVER#{driver_number}")
+        KeyConditionExpression=(
+            Key("PK").eq(f"SESSION#{session_key}#DRIVER#{driver_number}") &
+            Key("SK").begins_with("LAP#")
+        )
     )
     laps = result.get("Items", [])
 

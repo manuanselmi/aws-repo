@@ -75,6 +75,27 @@ def _handle(event):
     for dn in positions_by_driver:
         positions_by_driver[dn].sort(key=lambda x: x.get("date", ""))
 
+    # Official final classification = each driver's LAST position record. The
+    # per-lap position is a snapshot taken at each lap's end time, which differs
+    # per driver, so it can produce duplicates/gaps at the finish (two cars showing
+    # the same position because they crossed the line at different instants). We
+    # override the position on each driver's FINAL lap with this value so the end
+    # standings match the real result.
+    final_pos_by_driver = {}
+    for dn, recs in positions_by_driver.items():
+        if recs and recs[-1].get("position") is not None:
+            final_pos_by_driver[dn] = recs[-1]["position"]
+
+    max_lap_by_driver = {}
+    for lap in laps_data:
+        dn = lap.get("driver_number")
+        ln = lap.get("lap_number")
+        if dn is None or ln is None:
+            continue
+        ln = int(ln)
+        if ln > max_lap_by_driver.get(dn, 0):
+            max_lap_by_driver[dn] = ln
+
     with table.batch_writer() as batch:
         batch.put_item(Item={
             "PK": f"SESSION#{session_key}",
@@ -115,6 +136,11 @@ def _handle(event):
                 lap.get("date_start"),
                 lap.get("lap_duration"),
             )
+
+            # On the driver's last lap, use the official final position so the
+            # finishing order is exact (no snapshot duplicates/gaps).
+            if lap_number == max_lap_by_driver.get(dn) and dn in final_pos_by_driver:
+                position = final_pos_by_driver[dn]
 
             item = {
                 "PK": f"SESSION#{session_key}#DRIVER#{dn}",
