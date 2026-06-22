@@ -47,8 +47,14 @@ def handler(event, context):
 
     driver_number = int(driver_item["driver_number"])
 
+    # IMPORTANT: this partition mixes LAP# items with the simulator's LIVE#STATE
+    # item. Without begins_with("LAP#") the query also returns LIVE#STATE (which
+    # has no lap_number and carries the simulator's position), corrupting the laps.
     result = table.query(
-        KeyConditionExpression=Key("PK").eq(f"SESSION#{session_key}#DRIVER#{driver_number}")
+        KeyConditionExpression=(
+            Key("PK").eq(f"SESSION#{session_key}#DRIVER#{driver_number}") &
+            Key("SK").begins_with("LAP#")
+        )
     )
     laps = result.get("Items", [])
 

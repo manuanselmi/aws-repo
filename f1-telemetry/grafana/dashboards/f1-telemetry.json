@@ -7,6 +7,21 @@
   "schemaVersion": 38,
   "version": 1,
   "refresh": "5s",
+  "templating": {
+    "list": [
+      {
+        "name": "session",
+        "label": "Sesión",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "query": "label_values(f1_simulation_events_published_total, session_key)",
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false,
+        "current": {}
+      }
+    ]
+  },
   "panels": [
     {
       "id": 1,
@@ -16,7 +31,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "f1_simulation_status{status=\"RUNNING\"}",
+          "expr": "f1_simulation_status{status=\"RUNNING\", session_key=~\"$session\"}",
           "legendFormat": "Session {{session_key}}"
         }
       ],
@@ -45,7 +60,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "f1_simulation_events_published_total",
+          "expr": "f1_simulation_events_published_total{session_key=~\"$session\"}",
           "legendFormat": "Session {{session_key}}"
         }
       ],
@@ -60,7 +75,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "f1_simulation_events_processed_total",
+          "expr": "f1_simulation_events_processed_total{session_key=~\"$session\"}",
           "legendFormat": "Session {{session_key}}"
         }
       ],
@@ -75,11 +90,15 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "f1_driver_speed_kmh",
-          "legendFormat": "Driver {{driver_number}}"
+          "expr": "f1_driver_speed_kmh{session_key=~\"$session\"}",
+          "legendFormat": "{{driver_name}}"
         }
       ],
-      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": false
+      },
       "fieldConfig": {
         "defaults": {
           "min": 0,
@@ -99,18 +118,43 @@
     {
       "id": 5,
       "type": "table",
-      "title": "Driver Positions",
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "title": "Clasificación",
+      "gridPos": { "h": 12, "w": 8, "x": 16, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "f1_driver_position",
-          "legendFormat": "Driver {{driver_number}}",
+          "expr": "f1_driver_position{session_key=~\"$session\"}",
+          "format": "table",
           "instant": true
         }
       ],
-      "options": { "sortBy": [{ "displayName": "Value", "desc": false }] },
-      "fieldConfig": { "defaults": { "custom": { "displayMode": "basic" } } }
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "__name__": true,
+              "instance": true,
+              "job": true,
+              "session_key": true,
+              "driver_number": true
+            },
+            "renameByName": { "driver_name": "Piloto", "Value": "Pos" }
+          }
+        },
+        {
+          "id": "sortBy",
+          "options": { "fields": {}, "sort": [{ "field": "Pos", "desc": false }] }
+        }
+      ],
+      "options": { "showHeader": true },
+      "fieldConfig": {
+        "defaults": { "custom": { "align": "left" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Pos" }, "properties": [{ "id": "custom.width", "value": 60 }, { "id": "decimals", "value": 0 }] }
+        ]
+      }
     },
     {
       "id": 6,
@@ -120,27 +164,50 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "f1_driver_speed_kmh",
-          "legendFormat": "Driver {{driver_number}}"
+          "expr": "f1_driver_speed_kmh{session_key=~\"$session\"}",
+          "legendFormat": "{{driver_name}}"
         }
       ],
-      "options": { "legend": { "displayMode": "list" } },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        }
+      },
       "fieldConfig": { "defaults": { "unit": "velocitykmh" } }
     },
     {
       "id": 7,
       "type": "timeseries",
-      "title": "Driver Gap (seconds)",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 20 },
+      "title": "Posiciones en carrera (P1 arriba)",
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 20 },
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "f1_driver_gap_seconds",
-          "legendFormat": "Driver {{driver_number}}"
+          "expr": "f1_driver_position{session_key=~\"$session\"}",
+          "legendFormat": "{{driver_name}}"
         }
       ],
-      "options": { "legend": { "displayMode": "list" } },
-      "fieldConfig": { "defaults": { "unit": "s" } }
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "asc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "decimals": 0,
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 0,
+            "showPoints": "never",
+            "transform": "negative-Y",
+            "axisLabel": "Posición"
+          }
+        }
+      }
     }
   ]
 }

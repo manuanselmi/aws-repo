@@ -73,7 +73,6 @@ def update_live_state(table, session_key, driver_number, event):
     # (e.g. st_speed=None on certain laps) are preserved from the previous state.
     update_parts = [
         "current_lap = :lap",
-        "#pos = :pos",
         "#st = :run",
         "updated_at = :now",
         "session_key = :sk",
@@ -81,14 +80,21 @@ def update_live_state(table, session_key, driver_number, event):
     ]
     expr_values = {
         ":lap": to_decimal(event.get("lap_number")),
-        ":pos": to_decimal(event.get("position")),
         ":run": "RUNNING",
         ":now": now,
         ":sk":  session_key,
         ":dn":  driver_number,
     }
-    # position and status are DynamoDB reserved words — must alias them
-    expr_names = {"#pos": "position", "#st": "status"}
+    # status is a DynamoDB reserved word — must alias it
+    expr_names = {"#st": "status"}
+
+    # Only update position when this lap actually carries one. Overwriting with
+    # None would blank the driver's position and push them to the back of the
+    # ranking on laps where the source data has no position.
+    if event.get("position") is not None:
+        update_parts.append("#pos = :pos")
+        expr_names["#pos"] = "position"  # reserved word
+        expr_values[":pos"] = to_decimal(event["position"])
 
     if event.get("st_speed") is not None:
         update_parts.append("speed = :spd")
@@ -114,16 +120,46 @@ def update_live_state(table, session_key, driver_number, event):
 
     # Always increment events_processed — even if the live state update failed.
     try:
-        table.update_item(
+        resp = table.update_item(
             Key={"PK": f"SESSION#{session_key}", "SK": "SIMULATION#STATE"},
             UpdateExpression=(
                 "SET events_processed = if_not_exists(events_processed, :zero) + :one,"
                 " updated_at = :now"
             ),
             ExpressionAttributeValues={":zero": 0, ":one": 1, ":now": now},
+            ReturnValues="ALL_NEW",
         )
+        _maybe_mark_finished(table, session_key, resp.get("Attributes", {}), now)
     except Exception as e:
         print(f"[WARN] No se pudo incrementar events_processed: {e}")
+
+
+def _maybe_mark_finished(table, session_key, state, now):
+    """Flip status to FINISHED once every published event has been processed.
+
+    This is the single source of truth for "race over": the last (slowest) lap
+    has been applied. The condition ``status = RUNNING`` makes it idempotent and
+    prevents overriding a manual STOP.
+    """
+    try:
+        processed = int(state.get("events_processed", 0))
+        published = int(state.get("events_published", 0))
+    except (TypeError, ValueError):
+        return
+    if published <= 0 or processed < published:
+        return
+    try:
+        table.update_item(
+            Key={"PK": f"SESSION#{session_key}", "SK": "SIMULATION#STATE"},
+            UpdateExpression="SET #st = :fin, finished_at = :now, updated_at = :now",
+            ConditionExpression="#st = :run",
+            ExpressionAttributeNames={"#st": "status"},
+            ExpressionAttributeValues={":fin": "FINISHED", ":run": "RUNNING", ":now": now},
+        )
+        print(f"[OK] session={session_key} carrera FINALIZADA ({processed}/{published} eventos).")
+    except Exception:
+        # ConditionalCheckFailed => already FINISHED or STOPPED. Expected, ignore.
+        pass
 
 
 def get_sleep_needed(session_key, sim_started_at, scheduled_delay):
