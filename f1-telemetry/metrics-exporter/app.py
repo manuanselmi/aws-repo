@@ -137,11 +137,17 @@ def collect_metrics():
                 session_key=sk, driver_number=dn, driver_name=name
             ).set(float(rank_map[dn]))
             if speed is not None:
-                driver_speed_gauge.labels(session_key=sk, driver_number=dn, driver_name=name).set(float(speed))
+                driver_speed_gauge.labels(
+                    session_key=sk, driver_number=dn, driver_name=name
+                ).set(float(speed))
             if gap is not None:
-                driver_gap_gauge.labels(session_key=sk, driver_number=dn, driver_name=name).set(float(gap) / 1000.0)
+                driver_gap_gauge.labels(
+                    session_key=sk, driver_number=dn, driver_name=name
+                ).set(float(gap) / 1000.0)
             if lap is not None:
-                driver_lap_gauge.labels(session_key=sk, driver_number=dn, driver_name=name).set(float(lap))
+                driver_lap_gauge.labels(
+                    session_key=sk, driver_number=dn, driver_name=name
+                ).set(float(lap))
 
 
 def _rank_drivers(drivers):
